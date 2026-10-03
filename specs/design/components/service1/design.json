@@ -7,10 +7,31 @@
   "appPath": "service1",
   "entrypoint": "deployment/service",
   "exposure": "internet",
-  "dependencies": [
-    { "kind": "component", "name": "service2", "description": "Fetches the current catalog of scored records to compute the average." }
+  "stories": [
+    1,
+    2,
+    3
   ],
   "description": "Serves the average-score endpoint for API Consumers: fetches the current catalog from service2 on every request and returns the sum of scores divided by the record count, truncated to a whole number. The same computation runs regardless of which catalog service2 is currently serving. Logs how many records it handled per request. Any request to a path this service does not serve returns a structured 404 body. Does not store or modify any record data, and does not implement sign-in — access is open.",
-  "stories": [1, 2, 3],
-  "skillsPinned": ["openapi-conventions", "ballerina"]
+  "dependencies": [
+    {
+      "kind": "component",
+      "name": "service2",
+      "description": "Fetches the current catalog of scored records to compute the average.",
+      "wiring": {
+        "endpoint": {
+          "component": "sample-7-service2",
+          "name": "http",
+          "visibility": "project",
+          "envBindings": {
+            "address": "SERVICE2_URL"
+          }
+        }
+      }
+    }
+  ],
+  "skillsPinned": [
+    "openapi-conventions",
+    "ballerina"
+  ]
 }
