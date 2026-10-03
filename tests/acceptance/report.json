@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-03T18:50:30Z",
+  "commit": "d14a736ff4ff21ac66567c42a2e35634adfa8420",
+  "baseUrl": "http://development-default.openchoreoapis.localhost:19080/sample-7-service1-http",
+  "isolation": "Service1 is stateless and API-only; each scenario is asserted directly against its own HTTP response, with no shared container to isolate. Service2's catalog mode is global, mutable state owned entirely by service2 — but service2 has exposure \"intranet\" per specs/design/components/service2/design.json and no endpoint for it was provided in /tmp/validation-context.json (only service1's internet-exposed endpoint was given). This run never guessed or probed for a service2 URL, so it had no interface to set, reset, or even read the catalog mode directly, and no way to isolate that state from whatever else may be acting on the shared deployment.",
+  "scenarios": [
+    {
+      "feature": "Average score",
+      "featureFile": "specs/validation/acceptance/average-score.feature",
+      "line": 6,
+      "rule": "The average score is the sum of every record's score divided by the record count, discarded to a whole number",
+      "scenario": "Averaging the full catalog",
+      "tags": ["@story-1", "@story-2"],
+      "outcome": "blocked",
+      "steps": [
+        {
+          "text": "the catalog is in full mode",
+          "keyword": "Given",
+          "command": "curl -s http://development-default.openchoreoapis.localhost:19080/sample-7-service1-http/average-score (polled repeatedly over ~15 minutes)",
+          "exit": 1,
+          "observed": "No interface was available to set or verify service2's catalog mode directly: service2 is intranet-only per its design.json and no URL for it was provided. Service1's own /average-score response is the only indirect signal, and it never showed full-mode behaviour: early in the run it alternated between 503 \"no healthy upstream\" / connection-refused (service1 itself unreachable) and one 500 \" / by zero\" (consistent with an empty catalog crashing an unguarded division); once service1 stabilized it returned a steady {\"average\":0}, which is empty-mode behaviour, not full mode. The precondition could not be established and the live state contradicts it."
+        },
+        {
+          "text": "Alex the API Consumer requests the average score from Service1",
+          "keyword": "When",
+          "command": "curl -s -w ' [%{http_code}]' http://development-default.openchoreoapis.localhost:19080/sample-7-service1-http/average-score",
+          "exit": 0,
+          "observed": "Request reached service1 and returned 200 {\"average\":0}, reproduced 3 times consecutively."
+        },
+        {
+          "text": "the response reports an average of 35",
+          "keyword": "Then",
+          "command": "curl -s http://development-default.openchoreoapis.localhost:19080/sample-7-service1-http/average-score",
+          "exit": 1,
+          "observed": "{\"average\":0}, not 35. Since the Given precondition (full mode) was never established or confirmed, and the service's actual current state appears to be empty mode, this scenario is blocked rather than failed: the behaviour under test (averaging a full catalog) was never exercised."
+        }
+      ],
+      "evidence": {
+        "network": [
+          { "method": "GET", "url": "/average-score", "status": 503, "body": "no healthy upstream" },
+          { "method": "GET", "url": "/average-score", "status": 503, "body": "upstream connect error or disconnect/reset before headers. reset reason: remote connection failure, transport failure reason: delayed connect error: Connection refused" },
+          { "method": "GET", "url": "/average-score", "status": 500, "body": " / by zero" },
+          { "method": "GET", "url": "/average-score", "status": 200, "body": "{\"average\":0}" }
+        ],
+        "console": []
+      }
+    },
+    {
+      "feature": "Catalog mode switching",
+      "featureFile": "specs/validation/acceptance/catalog-mode.feature",
+      "line": 6,
+      "rule": "Service2 starts in full mode, serving its fixed catalog",
+      "scenario": "The catalog on startup",
+      "tags": ["@story-4"],
+      "outcome": "blocked",
+      "steps": [
+        {
+          "text": "Service2 has just started",
+          "keyword": "Given",
+          "command": "none available",
+          "observed": "This run has no way to restart service2 or confirm it has just started, and no endpoint for service2 at all (see isolation note). Indirect evidence (service1's {\"average\":0}) suggests the catalog is currently empty, not freshly started in full mode."
+        },
+        {
+          "text": "Priya the Operations Engineer requests the current catalog from Service2",
+          "keyword": "When",
+          "command": "none available",
+          "observed": "No URL for service2 was provided in /tmp/validation-context.json. Service2's exposure is \"intranet\" per specs/design/components/service2/design.json, i.e. not reachable by this validation run, which only holds an internet-facing endpoint for service1. Service1 exposes no proxy to service2's /catalog, and guessing a service2 URL is disallowed by the validation procedure."
+        },
+        {
+          "text": "the catalog has 10 records",
+          "keyword": "Then",
+          "command": "not attempted",
+          "observed": "No response could be obtained to count records against."
+        }
+      ],
+      "evidence": {
+        "network": [],
+        "console": ["No service2 endpoint was supplied by the platform; service2 is intranet-exposed per its design.json and was never probed or guessed."]
+      }
+    },
+    {
+      "feature": "Catalog mode switching",
+      "featureFile": "specs/validation/acceptance/catalog-mode.feature",
+      "line": 14,
+      "rule": "An Operations Engineer can switch Service2 between full mode and empty mode through its internal operations endpoint",
+      "scenario": "Switching to empty mode",
+      "tags": ["@story-4"],
+      "outcome": "blocked",
+      "steps": [
+        {
+          "text": "Service2 is in full mode",
+          "keyword": "Given",
+          "command": "none available",
+          "observed": "Could not be established or verified; no endpoint for service2 was available to this run, and indirect evidence suggests the catalog is actually in empty mode right now, not full mode."
+        },
+        {
+          "text": "Priya the Operations Engineer switches Service2 to empty mode",
+          "keyword": "When",
+          "command": "none available",
+          "observed": "POST /internal/catalog-mode is defined on service2 (specs/design/components/service2/openapi.yaml) but service2's exposure is \"intranet\" and no URL for it was provided. Service1 exposes no path that forwards this call. The action could not be performed at any reachable interface."
+        },
+        {
+          "text": "Service2's catalog has no records",
+          "keyword": "Then",
+          "command": "not attempted",
+          "observed": "No response could be obtained to assert against."
+        }
+      ],
+      "evidence": {
+        "network": [],
+        "console": ["No service2 endpoint was supplied by the platform; its internal operations endpoint is intranet-only per design and was never probed or guessed."]
+      }
+    },
+    {
+      "feature": "Catalog mode switching",
+      "featureFile": "specs/validation/acceptance/catalog-mode.feature",
+      "line": 19,
+      "rule": "An Operations Engineer can switch Service2 between full mode and empty mode through its internal operations endpoint",
+      "scenario": "Switching back to full mode",
+      "tags": ["@story-4"],
+      "outcome": "blocked",
+      "steps": [
+        {
+          "text": "Service2 is in empty mode",
+          "keyword": "Given",
+          "command": "none available",
+          "observed": "Could not be directly established or verified; no endpoint for service2 was available to this run. Indirect evidence (service1's {\"average\":0}) is consistent with this precondition already holding, but was never confirmed against service2 itself."
+        },
+        {
+          "text": "Priya the Operations Engineer switches Service2 to full mode",
+          "keyword": "When",
+          "command": "none available",
+          "observed": "Same constraint as the previous scenario: service2's internal operations endpoint is intranet-only and no URL was provided to this run."
+        },
+        {
+          "text": "Service2's catalog has 10 records",
+          "keyword": "Then",
+          "command": "not attempted",
+          "observed": "No response could be obtained to assert against."
+        }
+      ],
+      "evidence": {
+        "network": [],
+        "console": ["No service2 endpoint was supplied by the platform; its internal operations endpoint is intranet-only per design and was never probed or guessed."]
+      }
+    },
+    {
+      "feature": "Unmatched paths",
+      "featureFile": "specs/validation/acceptance/unmatched-paths.feature",
+      "line": 7,
+      "rule": "A request to a path Service1 does not serve returns a structured 404 body",
+      "scenario": "Requesting a path Service1 does not serve",
+      "tags": ["@negative"],
+      "outcome": "passed",
+      "steps": [
+        {
+          "text": "Service1 is running",
+          "keyword": "Given",
+          "command": "curl -s -o /dev/null -w \"%{http_code}\" http://development-default.openchoreoapis.localhost:19080/sample-7-service1-http/unknown-path",
+          "exit": 0,
+          "observed": "After an initial unhealthy period (503 \"no healthy upstream\" / connection refused for roughly the first 15 minutes of this run, see the average-score scenario's evidence), service1 stabilized and returned HTTP 404, confirming it is up and answering requests."
+        },
+        {
+          "text": "Alex the API Consumer requests the path \"/unknown-path\" from Service1",
+          "keyword": "When",
+          "command": "curl -s -i http://development-default.openchoreoapis.localhost:19080/sample-7-service1-http/unknown-path",
+          "exit": 0,
+          "observed": "HTTP/1.1 404 Not Found, content-type: application/json, reproduced identically across 2 separate calls."
+        },
+        {
+          "text": "Alex receives a structured 404 error body",
+          "keyword": "Then",
+          "command": "curl -s http://development-default.openchoreoapis.localhost:19080/sample-7-service1-http/unknown-path",
+          "exit": 0,
+          "observed": "{\"code\":404, \"message\":\"Not Found\", \"description\":\"No resource exists for the path '/unknown-path'\"} — a structured object with code, message and description fields, matching the Error schema shape documented in specs/design/components/service2/openapi.yaml and service1's own description of returning a structured 404 body."
+        }
+      ],
+      "evidence": {
+        "network": [
+          { "method": "GET", "url": "/unknown-path", "status": 404, "body": "{\"code\":404, \"message\":\"Not Found\", \"description\":\"No resource exists for the path '/unknown-path'\"}" }
+        ],
+        "console": []
+      }
+    }
+  ]
+}
