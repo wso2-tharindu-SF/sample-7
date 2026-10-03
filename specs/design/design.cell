@@ -1,0 +1,9 @@
+title sample-7
+
+component service1 as "Score Average Service" service
+component service2 as "Record Catalog Service" service
+
+north -> service1
+west -> service2
+
+service1 -> service2
