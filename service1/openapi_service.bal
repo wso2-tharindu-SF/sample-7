@@ -10,9 +10,9 @@ listener http:Listener ep0 = new (9090);
 service / on ep0 {
     // Fetches the current catalog from service2, paginating through `limit`/
     // `offset`/`next` as needed, and returns the integer average of every
-    // record's score. Any error from service2 (including a divide-by-zero on
-    // an empty catalog, out of scope per the PRD) surfaces as a 500 — the
-    // contract documents only this one 200.
+    // record's score. The contract documents only one 200 response, so an
+    // empty catalog (recordCount=0) reports an average of 0 rather than
+    // erroring — there is no error schema to surface a failure through.
     resource function get average\-score() returns AverageScore|error {
         int totalScore = 0;
         int recordCount = 0;
@@ -34,7 +34,7 @@ service / on ep0 {
             }
         }
         log:printInfo("average score request handled", recordCount = recordCount);
-        int averageScore = totalScore / recordCount;
+        int averageScore = recordCount == 0 ? 0 : totalScore / recordCount;
         return {average: averageScore};
     }
 
